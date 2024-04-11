@@ -40,4 +40,6 @@ class Command(BaseCommand):
         print(sim)
         idx = np.argmax(sim)
         idx = int(idx)
-        print(items[idx].title)
+        movie=items[idx].title
+        print(movie)
+        return movie

@@ -8,6 +8,11 @@ import matplotlib
 import io
 import urllib, base64
 
+import numpy as np
+from dotenv import load_dotenv, find_dotenv
+from openai import OpenAI
+import os
+
 def home(request):
     #return HttpResponse('<h1>Welcome to Home Page</h1>')
     #return render(request, 'home.html')
@@ -123,3 +128,43 @@ def generate_bar_chart(data, xlabel, ylabel):
     buffer.close()
     graphic = base64.b64encode(image_png).decode('utf-8')
     return graphic
+
+def recomendationsView(req):
+        
+    def get_embedding(text, client, model="text-embedding-3-small"):
+        text = text.replace("\n", " ")
+        return client.embeddings.create(input = [text], model=model).data[0].embedding
+
+    def cosine_similarity(a, b):
+        return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+    def rec(req):
+        #Se lee del archivo .env la api key de openai
+        _ = load_dotenv('../openAI.env')
+        client = OpenAI(
+        # This is the default and can be omitted
+            api_key=os.environ.get('openAI_api_key'),
+        )
+        
+        items = Movie.objects.all()
+
+        emb_req = get_embedding(req, client)
+
+        sim = []
+        for i in range(len(items)):
+            emb = items[i].emb
+            emb = list(np.frombuffer(emb))
+            sim.append(cosine_similarity(emb,emb_req))
+        sim = np.array(sim)
+        idx = np.argmax(sim)
+        idx = int(idx)
+        movie=items[idx]
+        return movie
+    searchTerm = req.GET.get('keyWords') # GET se usa para solicitar recursos de un servidor
+    if searchTerm:
+        movie=rec(searchTerm)
+        movies = [movie]
+    else:
+        movies = []
+    return render(req, 'recomendations.html', {'searchTerm':searchTerm, 'movies':movies})
+    pass
